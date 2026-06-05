@@ -137,15 +137,15 @@
 
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label class="block text-sm font-medium mb-2">كثافة المادة التقديرية ($\text{g/cm}^3$)</label>
+                            <label class="block text-sm font-medium mb-2">كثافة المادة التقديرية (g/cm³)</label>
                             <input type="number" id="entryDensity" step="0.01" value="0.85" class="w-full p-3 border rounded-lg" oninput="calcVol()">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-2">حالة التدفق اللحظية</label>
                             <select id="entryFlow" class="w-full p-3 border rounded-lg">
+                                <option value="none">مستقر تماماً (No Flow)</option>
                                 <option value="in">جاري التدفق إليه (Inflow)</option>
                                 <option value="out">جاري السحب منه (Outflow)</option>
-                                <option value="none">مستقر تماماً (No Flow)</option>
                             </select>
                         </div>
                     </div>
@@ -521,12 +521,12 @@
         function init() {
             initGroups();
             
-            var savedSettings = localStorage.getItem('appSettings_v1');
-            if (savedSettings) {
-                var settings = JSON.parse(savedSettings);
-                if (settings.password) APP_PASSWORD = settings.password;
-                if (settings.defaultTankCount) DEFAULT_TANK_COUNT = settings.defaultTankCount;
-            }
+            // إجبار المتغير على القيمة 9191 في حال وجود مخلفات قديمة في المتصفح
+            localStorage.setItem('appSettings_v1', JSON.stringify({
+                password: '9191',
+                defaultTankCount: DEFAULT_TANK_COUNT
+            }));
+            APP_PASSWORD = '9191';
             
             var savedGroups = localStorage.getItem('myGroups_v4');
             if (savedGroups) {
@@ -753,6 +753,7 @@
             document.getElementById('sampleTankList').classList.remove('visible');
         }
 
+        // === محرك الحسابات المدمج ===
         function showTankInfo() {
             var id = document.getElementById('tankIdHidden').value;
             var info = document.getElementById('tankInfo');
@@ -763,7 +764,6 @@
             calcVol();
         }
 
-        // === محرك الحسابات المدمج: الحجم والطن التقديري اللحظي ===
         function calcVol() {
             var id = document.getElementById('tankIdHidden').value;
             var level = parseFloat(document.getElementById('entryLevel').value) || 0;
@@ -771,8 +771,7 @@
             var tank = getTank(id);
             
             if (tank) {
-                var vol = level * tank.factor; // الحجم بالمتر المكعب
-                // التحويل إلى لتر ومن ثم ضربه بالكثافة للتحويل إلى طن: (الحجم م3 * 1000 * الكثافة) / 1000 = الحجم م3 * الكثافة
+                var vol = level * tank.factor;
                 var tons = vol * density;
                 
                 document.getElementById('volDisplay').textContent = vol.toFixed(3) + ' م³';
@@ -1220,270 +1219,4 @@
                         '<p class="font-bold text-sm text-blue-600">' + gd.totalVolume.toFixed(3) + ' م³</p>' +
                         '<p class="font-bold text-base text-green-600">' + gd.totalTonnage.toFixed(2) + ' طن</p></div>' +
                         '<div class="bg-blue-50 p-2 rounded"><p class="text-gray-500 text-xs">الماء الراقد الكلي</p>' +
-                        '<p class="font-bold text-base text-blue-700">' + gd.totalWaterCm.toFixed(2) + ' سم</p>' +
-                        '<p class="text-xs text-blue-500">(' + gd.totalWaterVol.toFixed(3) + ' م³)</p></div></div>';
-                    summaryDiv.appendChild(card);
-                    
-                    var detailCard = document.createElement('div');
-                    detailCard.className = 'bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4';
-                    var tanksHtml = '';
-                    gd.tanks.forEach(function(tItem) {
-                        var t = tItem.tank; var r = tItem.reading;
-                        var waterDisplay = r && r.water > 0 ? '<span class="text-blue-600 text-xs">💧 ' + r.water.toFixed(2) + ' سم</span>' : '<span class="text-gray-400 text-xs">-</span>';
-                        var dateDisplay = r ? r.date + ' ' + (r.time || '') : '<span class="text-gray-400">لا توجد حركات</span>';
-                        
-                        var fText = 'مستقر';
-                        if(r && r.flowStatus === 'in') fText = '📥 وارد';
-                        if(r && r.flowStatus === 'out') fText = '📤 صادر';
-
-                        tanksHtml += '<div class="flex justify-between items-center py-2 border-b last:border-0"><div>' +
-                            '<p class="font-medium text-gray-700">' + t.name + ' <span class="text-xs text-gray-400">(' + fText + ')</span></p><p class="text-xs text-gray-500">' + dateDisplay + '</p>' + waterDisplay + '</div>' +
-                            '<div class="text-left"><p class="font-bold text-sm text-blue-600">' + (r ? r.volume.toFixed(3) : '0.000') + ' م³</p>' +
-                            '<p class="font-bold text-sm text-green-600">' + (r ? r.tonnage.toFixed(2) : '0.00') + ' طن</p>' +
-                            '<p class="text-xs text-gray-500">' + (r ? r.level.toFixed(2) : '0') + ' سم</p></div></div>';
-                    });
-                    
-                    detailCard.innerHTML = '<div class="flex justify-between items-center mb-3 pb-2 border-b-2" style="border-color:' + gd.color + '">' +
-                        '<h4 class="font-bold text-lg" style="color:' + gd.color + '">' + gd.name + '</h4>' +
-                        '<div class="text-left"><p class="text-lg font-bold text-blue-600">' + gd.totalVolume.toFixed(3) + ' م³ | <span class="text-green-600">' + gd.totalTonnage.toFixed(2) + ' طن</span></p>' +
-                        '<p class="text-xs text-blue-600">إجمالي المياه: ' + gd.totalWaterCm.toFixed(2) + ' سم</p></div></div>' +
-                        '<div class="space-y-1">' + tanksHtml + '</div>';
-                    detailsDiv.appendChild(detailCard);
-                }
-            }
-            if (!hasSummaryData) {
-                summaryDiv.innerHTML = '<div class="col-span-full text-center py-8 text-gray-400">📭 لا تتوفر تجميعات لبيانات جرد المجموعات لهذا التاريخ</div>';
-                detailsDiv.innerHTML = '<div class="text-center py-8 text-gray-400">📭 لا توجد تفاصيل متاحة</div>';
-            }
-        }
-
-        // === معالجات الحذف وعموميات العرض ===
-        function openDelete(id, name, type) {
-            document.getElementById('deleteId').value = String(id);
-            document.getElementById('deleteType').value = type;
-            if (type === 'tank') {
-                var idNum = parseInt(id);
-                var recCount = records.filter(function(r) { return r.tankId === idNum; }).length;
-                document.getElementById('deleteText').textContent = 'هل أنت متأكد من مسح صهريج "' + name + '" نهائياً؟ هذا الإجراء سيمسح (' + recCount + ' قراءة) وسجلات كميات مرتبطة به تماماً!';
-            } else if (type === 'record') {
-                document.getElementById('deleteText').textContent = 'تأكيد إزالة سجل القياس والوزن المختار من الجداول والتقارير؟';
-            } else {
-                document.getElementById('deleteText').textContent = 'تأكيد حذف ' + name + '؟';
-            }
-            document.getElementById('deleteModal').classList.add('active');
-        }
-
-        function doDelete() {
-            var idStr = document.getElementById('deleteId').value;
-            var type = document.getElementById('deleteType').value;
-            
-            if (type === 'tank') {
-                var tankId = parseInt(idStr);
-                records = records.filter(function(r) { return r.tankId !== tankId; });
-                tanks = tanks.filter(function(t) { return t.id !== tankId; });
-                saveTanks(); saveRecords();
-                closeModal('deleteModal');
-                buildTankDropdown(); buildSampleTankDropdown();
-                showConfig(); showGroups(); fillTankFilter(); updateStats();
-                showToast('✅ تم حذف الخزان والسجلات الحركية التابعة له');
-            } else if (type === 'record') {
-                var recId = parseInt(idStr);
-                records = records.filter(function(r) { return r.id !== recId; });
-                saveRecords();
-                closeModal('deleteModal');
-                showReport(); updateStats();
-                showToast('✅ تم مسح قيد القياس بنجاح');
-            } else if (type === 'group') {
-                var groupKey = idStr;
-                tanks.forEach(function(t) { if (t.group === groupKey) t.group = 'none'; });
-                records.forEach(function(r) { if (r.group === groupKey) r.group = 'none'; });
-                groupList = groupList.filter(function(g) { return g.key !== groupKey; });
-                delete groups[groupKey];
-                saveTanks(); saveRecords(); saveGroupsData();
-                closeModal('deleteModal');
-                showGroups(); buildTankDropdown(); buildSampleTankDropdown(); showReport(); fillGroupFilter();
-                showToast('✅ تم إلغاء وحذف تصنيف الصنف المختار');
-            }
-        }
-
-        function closeModal(modalId) { var modal = document.getElementById(modalId); if (modal) modal.classList.remove('active'); }
-        function handleModalClick(event, modalId) { if (event.target === document.getElementById(modalId)) closeModal(modalId); }
-        
-        function updateStats() {
-            var configured = tanks.filter(function(t) { return t.configured; }).length;
-            document.getElementById('statTotal').textContent = String(tanks.length);
-            document.getElementById('statConfig').textContent = String(configured);
-            document.getElementById('statNoConfig').textContent = String(tanks.length - configured);
-            document.getElementById('statRecs').textContent = String(records.length);
-        }
-
-        function showToast(msg) {
-            var t = document.getElementById('toast');
-            var txt = document.getElementById('toastText');
-            if (t && txt) {
-                txt.textContent = msg;
-                t.style.opacity = '1';
-                setTimeout(function() { t.style.opacity = '0'; }, 2500);
-            }
-        }
-
-        // === محرك النسخ الاحتياطي الشامل واستعادة قواعد البيانات ===
-        function exportBackup() {
-            var backupData = {
-                version: '2.0-MassTonnage',
-                exportDate: new Date().toISOString(),
-                settings: { password: APP_PASSWORD, defaultTankCount: DEFAULT_TANK_COUNT },
-                tanks: tanks, records: records, samples: samples, groups: groupList, nextId: nextId
-            };
-            var blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'نسخة_احتياطية_كاملة_الخزانات_والأوزان_' + new Date().toISOString().slice(0,10) + '.json';
-            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-            showToast('✅ تم تنزيل الأرشيف الاحتياطي للمشروع بنجاح');
-        }
-
-        function importBackup(event) {
-            var file = event.target.files[0]; if (!file) return;
-            var reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    var backupData = JSON.parse(e.target.result);
-                    if (!backupData.tanks || !backupData.records) { throw new Error('الملف لا يحتوي على تراكيب هيكلية صالحة لنظام الخزانات والجرود'); }
-                    if (!confirm('⚠️ تحذير: استرداد النسخة الاحتياطية سيقوم باستبدال وحذف جميع قراءاتك وسجلات الخزانات والأوزان الحالية نهائياً!\n\nهل ترغب بالاستمرار؟')) { event.target.value = ''; return; }
-                    
-                    if (backupData.settings) {
-                        if (backupData.settings.password) APP_PASSWORD = backupData.settings.password;
-                        if (backupData.settings.defaultTankCount) DEFAULT_TANK_COUNT = backupData.settings.defaultTankCount;
-                    }
-                    tanks = backupData.tanks || []; records = backupData.records || [];
-                    samples = backupData.samples || []; groupList = backupData.groups || []; nextId = backupData.nextId || 100;
-                    
-                    groups = {}; groupList.forEach(function(g) { groups[g.key] = {name: g.name, color: g.color}; });
-                    
-                    saveTanks(); saveRecords(); saveSamples(); saveGroupsData();
-                    localStorage.setItem('appSettings_v1', JSON.stringify({ password: APP_PASSWORD, defaultTankCount: DEFAULT_TANK_COUNT }));
-                    
-                    init();
-                    showToast('✅ تم تصفير واستعادة بنية قاعدة البيانات الشاملة بنجاح');
-                } catch (err) { showToast('❌ عطل في معالجة وفك ملف الـ JSON: ' + err.message); }
-            };
-            reader.readAsText(file); event.target.value = '';
-        }
-
-        // === محرك الرفع والربط اللحظي مع Google Sheets ===
-        function syncNow() {
-            if (isSyncing) return;
-            isSyncing = true;
-            setSyncStatus('pending', '🔄 جاري ترحيل وإرسال حزم البيانات للسيرفر...');
-            
-            var payload = { tanks: tanks, records: records, samples: samples };
-            
-            fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            })
-            .then(function() {
-                setSyncStatus('ok', '✅ اكتملت المزامنة بنجاح تام مع السيرفر');
-                showToast('✅ تمت عملية المزامنة بنجاح مع Google Sheets');
-                isSyncing = false;
-            })
-            .catch(function(err) {
-                console.error(err);
-                setSyncStatus('error', '❌ عطل في إجراء الاتصال والمزامنة');
-                showToast('❌ عطل فني في الاتصال والرفع على السيرفر المركزي');
-                isSyncing = false;
-            });
-        }
-
-        // === دوال تصدير التقارير المحدثة بصيغة PDF ومحاكاة النصوص والمحاذاة للطن والتدفق ===
-        function exportReportPDF() {
-            if (typeof window.jspdf === 'undefined') { showToast('⚠️ جاري استدعاء مكتبة توليد الـ PDF...'); return; }
-            const { jsPDF } = window.jspdf;
-            var doc = new jsPDF({direction: 'rtl'});
-            
-            doc.text('تقرير حركة القياسات والأوزان الشهري للخزانات والصهاريج', 110, 15);
-            
-            var tableData = [];
-            var rows = document.querySelectorAll('#reportBody tr');
-            rows.forEach(function(row) {
-                var cells = row.querySelectorAll('td');
-                if (cells.length > 1) { 
-                    tableData.push([
-                        cells[0].textContent.trim(), // التاريخ
-                        cells[1].textContent.trim(), // الوقت
-                        cells[2].textContent.trim(), // الخزان
-                        cells[3].textContent.trim(), // المجموعة
-                        cells[4].textContent.trim(), // حالة التدفق
-                        cells[5].textContent.trim(), // سم
-                        cells[6].textContent.trim(), // ماء
-                        cells[7].textContent.trim(), // م3
-                        cells[8].textContent.trim()  // طن
-                    ]);
-                }
-            });
-            
-            doc.autoTable({
-                head: [['التاريخ', 'الوقت', 'الخزان', 'المجموعة', 'الحالة الحركية', 'الارتفاع سم', '💧 ماء', 'م³ الحجم', 'الوزن (طن)']],
-                body: tableData,
-                startY: 25,
-                styles: { halign: 'right' },
-                headStyles: { fillColor: [37, 99, 235] }
-            });
-            
-            doc.save('تقرير_القياسات_والأوزان_المتكامل_' + new Date().toISOString().slice(0,10) + '.pdf');
-            showToast('✅ تم تصدير مستند التقارير والحسابات الذكية PDF بنجاح');
-        }
-
-        function exportInventoryPDF() {
-            if (typeof window.jspdf === 'undefined') { showToast('⚠️ جاري التحميل...'); return; }
-            const { jsPDF } = window.jspdf;
-            var doc = new jsPDF({direction: 'rtl'});
-            
-            doc.text('بيان حركة جرد كميات وأوزان المخزون الموحد', 120, 15);
-            
-            var tableData = [];
-            var rows = document.querySelectorAll('#inventoryBody tr');
-            rows.forEach(function(row) {
-                var cells = row.querySelectorAll('td');
-                if (cells.length > 1) {
-                    tableData.push([
-                        cells[0].textContent.trim(),
-                        cells[1].textContent.trim(),
-                        cells[2].textContent.trim(),
-                        cells[3].textContent.trim(),
-                        cells[4].textContent.trim(),
-                        cells[5].textContent.trim(),
-                        cells[6].textContent.trim(),
-                        cells[7].textContent.trim()
-                    ]);
-                }
-            });
-            
-            doc.autoTable({
-                head: [['الخزان', 'المجموعة', 'آخر حركة', 'حالة التدفق', 'القراءة سم', '💧 ماء', 'الحجم الحالي م³', 'الوزن الحالي طن']],
-                body: tableData,
-                startY: 25,
-                styles: { halign: 'right' },
-                headStyles: { fillColor: [16, 185, 129] }
-            });
-            doc.save('بيان_الجرد_الميداني_الحجمي_والوزني_' + new Date().toISOString().slice(0,10) + '.pdf');
-            showToast('✅ تم استخراج وحفظ مستند الجرد الكمي بنجاح');
-        }
-
-        function exportGroupInventoryPDF() {
-            if (typeof window.jspdf === 'undefined') { showToast('⚠️ جاري تهيئة المكتبات...'); return; }
-            const { jsPDF } = window.jspdf;
-            var doc = new jsPDF({direction: 'rtl'});
-            doc.text('تقرير ملخص جرد المجموعات الاستراتيجي', 130, 15);
-            
-            var tableData = [];
-            var summaries = document.querySelectorAll('#groupInventorySummary > div');
-            summaries.forEach(function(card) {
-                var name = card.querySelector('h3').textContent.trim();
-                var count = card.querySelector('span').textContent.trim();
-                var textBlocks = card.querySelectorAll('p.font-bold');
-                var vol = textBlocks[0] ?
+                        '<p class="
